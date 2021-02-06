@@ -1,12 +1,13 @@
 import React, { FunctionComponent, useEffect, useState } from "react";
 import { Card, Upload, message, Image, Button, Spin } from "antd";
 import { InboxOutlined } from "@ant-design/icons";
-import { UploadFile } from "antd/lib/upload/interface";
-import readXlsxFile from "read-excel-file";
+import { UploadFile } from "antd/lib/upload/interface"
+import dynamic from "next/dynamic";
+import moment from 'moment';
 
 const { Dragger } = Upload;
 
-interface AdsRow {
+export interface AdsRow {
   name: string;
   date: string;
   movie: string;
@@ -17,6 +18,8 @@ const Index: FunctionComponent = () => {
   const [result, setResult] = useState<AdsRow[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
 
+  const ButtonToExport = dynamic(() => import('./exportButton'), { ssr: false })
+
   const onSumbit = () => {
     setLoading(true);
     setResult([]);
@@ -26,7 +29,7 @@ const Index: FunctionComponent = () => {
       reader.onload = (textFile) => {
         if (typeof textFile.target.result === "string") {
           let rows = textFile.target.result.split("\n");
-          if(rows.length == 1){
+          if (rows.length == 1) {
             rows = textFile.target.result.split("\r\n");
           }
           const header = rows[0].split(",");
@@ -43,7 +46,7 @@ const Index: FunctionComponent = () => {
               ) {
                 for (var i = 0; i < Number(colValue); i++) {
                   tempResult.push({
-                    name: file.name,
+                    name: file.name.replace(".csv", ""),
                     date: a[0][colIndex],
                     movie: cols[0],
                   });
@@ -52,15 +55,19 @@ const Index: FunctionComponent = () => {
             });
           });
           result.push(...tempResult)
+          result.sort((a, b) => moment(a.date, "DD-MMM").unix() - moment(b.date, "DD-MMM").unix())
           setResult(result);
         }
       };
       reader.readAsText(file.originFileObj);
-      if(files.length-1 === fileIndex){
+      if (files.length - 1 === fileIndex) {
         setLoading(false);
       }
     });
   };
+  useEffect(() => {
+    document.title = "AdSpeed Converter"
+  }, [])
 
   return (
     <div
@@ -81,30 +88,31 @@ const Index: FunctionComponent = () => {
       >
         <div
           style={{
-            display: "flex",
-            width: "100%",
-            alignItems: "center",
-            justifyContent: "center",
+            display: 'flex',
+            width: '100%',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom:'10%'
           }}
         >
           <Image
-            width={"auto"}
-            height={100}
+            width={300}
+            height={'auto'}
             preview={false}
-            src={"https://i.blogs.es/1fe3ee/crunchyroll/450_1000.png"}
+            src={'images/logo-adspeed.png'}
           />
+
         </div>
         <Dragger
           name={"file"}
+          disabled={result.length!==0}
           multiple={true}
-          action={"https://www.mocky.io/v2/5cc8019d300000980a055e76"}
+          beforeUpload={()=>{return true}}
           onChange={(info) => {
             const { status } = info.file;
             if (status === "done") {
-              message.success(`${info.file.name} file uploaded successfully.`);
+              message.success(`${info.file.name} se ha cargado exitosamente.`);
               setFiles(info.fileList);
-            } else if (status === "error") {
-              message.error(`${info.file.name} file upload failed.`);
             }
           }}
         >
@@ -118,17 +126,16 @@ const Index: FunctionComponent = () => {
         {loading ? (
           <Spin />
         ) : (
-          <>
-            <Button onClick={onSumbit}>Procesar</Button>
-            <Button
-              onClick={() => {
-                console.log(result);
-              }}
-            >
-              Guardar
-            </Button>
-          </>
-        )}
+            <div style={{ textAlign: "center", margin: '5%' }}>
+              {
+                files.length !== 0 && result.length === 0 && <Button onClick={onSumbit} style={{ margin: '2%' }}>Procesar</Button>
+
+              }
+              {
+                result.length !== 0 && <ButtonToExport data={result} />
+              }
+            </div>
+          )}
       </Card>
     </div>
   );

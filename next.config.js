@@ -25,6 +25,9 @@ module.exports = withPlugins([
             }
         },
         webpack: (config, { isServer }) => {
+            config.node = {
+                fs: 'empty'
+            }
             if (isServer) {
                 const antStyles = /antd\/.*?\/style.*?/;
                 const origExternals = [...config.externals];
